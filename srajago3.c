@@ -1,0 +1,741 @@
+#include <stdlib.h>
+#include <string.h>
+#include <malloc.h>
+
+#define MINE -1111111111
+#define MAXE 1111111111
+
+#define NEGINF -1111111111
+#define POSINF 1111111111
+#define STACK_MAX 1000000
+
+
+#define DEBUG 0
+
+/*
+   structure for implementing the measure tree structure
+ */
+
+typedef struct node_list{
+	int left;
+	int right;
+	struct node_list* next;
+}node_list;
+
+typedef struct m_tree_t{
+	int key;
+	int leftMin;
+	int rightMax;
+	int height;
+	int measure;
+	int l,r;
+	struct m_tree_t *left;
+	struct m_tree_t *right;
+	struct node_list *node_list;
+}m_tree_t;
+
+/*
+   Utility Operations
+*/
+int min(int a, int b){
+    return (a<b)?a:b;
+}
+
+int max(int a, int b){
+    return (a>b)?a:b;
+}
+
+
+
+/*  Stack Operations -- (Referred from the Text Book)
+
+/*
+   structure for implementing the stack
+ */
+
+typedef struct stack {
+	m_tree_t *tree;
+	struct stack *next; 
+} stack;
+
+
+/*
+   Creates an Empty Stack
+*/
+stack *createStack(void){
+	stack *s = (stack*) malloc(sizeof(stack));
+	s->next = NULL;
+	return s;
+}
+
+/*
+   returns 1 if Stack is empty, else 0
+ */
+int stackEmpty(stack *s){
+	if(s->next == NULL){
+		return 1;
+	}	
+	else{
+		return 0;
+	}
+}
+
+/*
+   Pushes the object into the Stack
+ */
+void stackPush( m_tree_t *tree, stack *s){
+	stack *tmp = (stack*) malloc(sizeof(stack));
+	tmp->tree = tree;
+	tmp->next = s->next;
+	s->next = tmp;
+}
+
+/*
+   returns the top element of the Stack and deletes the item from the Stack
+*/
+m_tree_t* stackPop(stack *s){
+	stack *tmp; m_tree_t* node;
+	tmp = s->next;
+	s->next = tmp->next;
+	node = tmp->tree;
+	free(tmp);
+	return node;
+}
+
+/*
+   return the top element from the stack
+*/
+m_tree_t* stackTop(stack *s){
+	if( s->next != NULL){
+		return( s->next->tree );
+	}
+	else{
+		NULL;
+	}
+}
+
+void removeStack(stack *s)
+{
+	stack *tmp;
+	do{
+		tmp = s->next;
+		free(s);
+		s = tmp;
+	}
+	while ( tmp != NULL );
+}
+
+/*
+   returns the height of the tree
+ */
+/*int findHeight(m_tree_t *txt){
+	if(txt->left == NULL || txt->right == NULL)
+		return 0;
+	else{
+		int leftHeight = findHeight(txt->left);
+		int rightHeight = findHeight(txt->right);
+		if(leftHeight < rightHeight){
+			return rightHeight+1;		
+		}
+		else
+			return leftHeight+1;
+	}
+}*/
+
+/*End of Stack operations*/
+
+m_tree_t* create_node(){
+	m_tree_t *mTree = (m_tree_t*) malloc(sizeof(m_tree_t));
+	mTree->leftMin = MINE;
+	mTree->rightMax = MAXE;
+	mTree->left = NULL;
+	mTree->height = 0;
+	mTree->measure = 0;
+	mTree->node_list = NULL;
+	return (mTree);
+}
+/*
+   creates an empty measure tree.
+*/
+
+m_tree_t * create_m_tree(){
+	m_tree_t *mTree = create_node();
+	if(mTree){
+		return (mTree);
+	}
+	return NULL;
+}
+
+/*
+   calculates the Measure value of the Leaf
+*/
+
+void calculateLeafMeasure(m_tree_t* tree){
+	int left, right;
+	if(tree->leftMin < tree->l){
+	    left = tree->l;
+	}
+	else{
+	    left = tree->leftMin;
+	}
+
+	if(tree->rightMax > tree->r){
+	    right = tree->r;
+	}
+	else{
+	    right = tree->rightMax;
+	}
+	tree->measure = right - left;
+
+}
+
+
+/*
+   calculates the Measure value of the internal node of the tree -- Referred from the Text Book
+*/
+void calculateInternalMeasure(m_tree_t *n)
+{
+	if(n->right->leftMin < n->l && n->left->rightMax >= n->r)
+	    n->measure = n->r - n->l;
+	if(n->right->leftMin >= n->l && n->left->rightMax >= n->r)
+	    n->measure = n->r - n->key + n->left->measure;
+	if(n->right->leftMin < n->l && n->left->rightMax < n->r)
+	    n->measure = n->right->measure + n->key - n->l;
+	if(n->right->leftMin >= n->l && n->left->rightMax < n->r)
+	    n->measure = n->right->measure + n->left->measure;
+}
+
+
+/*
+   	Adds the node list to the associated node list
+*/
+void addNodeInterval(m_tree_t* tree, node_list *list){
+	  node_list *tmp =  (node_list*) tree->left; 
+	  node_list *newNode = (node_list*)malloc(sizeof(node_list));
+	  newNode->left = list->left;
+	  newNode->right = list->right;
+	  newNode->next = NULL;
+	  if(tmp == NULL){
+	      tree->left = (m_tree_t*) newNode;
+	      return;
+	  }
+	  newNode->next = (node_list*)(tree->left);
+	  tree->left = (m_tree_t*) newNode;
+}
+
+
+int calculateLeftMin(node_list* head){
+  int min = head->left;
+  head = head->next;
+  while(head!=NULL)
+    {
+      if(head->left < min){
+	min = head->left;
+      }	
+      head = head->next;
+    }
+  return min;
+}
+
+
+int calculateRightMax(node_list* head){
+	  int max = head->right;
+	  head = head->next;
+	  while(head!=NULL)
+	    {
+	      if(head->right > max){
+		max = head->right;
+	      }
+	      head = head->next;
+	    }
+	  return max;
+}
+
+
+/*
+   Performs Left Rotation on the tree - (Referred from the Text Book)
+ */
+
+void leftRotation(m_tree_t *txt){
+	m_tree_t *tmp = txt;
+	int key;
+	tmp = txt->left;
+	key = txt->key;
+	txt->left = txt->right;
+	txt->key = txt->right->key;
+	txt->right = txt->left->right;	
+	txt->left->right = txt->left->left;
+	txt->left->left = tmp;
+	txt->left->key = key;
+
+	txt->left->l = txt->l;
+	txt->left->r = txt->key;
+	txt->left->leftMin = min(txt->left->left->leftMin,txt->left->right->leftMin); 
+	txt->left->rightMax = max(txt->left->left->rightMax,txt->left->right->rightMax);
+	calculateInternalMeasure(txt->left);
+}
+
+/*
+   Performs Right Rotation on the tree - (Referred from the Text Book)
+ */
+
+void rightRotation(m_tree_t *txt){
+	m_tree_t *tmp = txt;
+	int key;
+	tmp = txt->right;
+	key = txt->key;
+	txt->right = txt->left;
+	txt->key = txt->left->key;
+	txt->left = txt->right->left;	
+	txt->right->left = txt->right->right;
+	txt->right->right = tmp;
+	txt->right->key = key;
+
+	txt->right->l = txt->key;
+	txt->right->r = txt->r;
+	txt->right->leftMin = min(txt->right->left->leftMin,txt->right->right->leftMin); 
+	txt->right->rightMax = max(txt->right->left->rightMax,txt->right->right->rightMax);
+	calculateInternalMeasure(txt->right);
+}
+
+
+
+
+/*
+   inserts key value in to the measure tree - Source from the basic search tree implementation - Project1
+*/
+
+
+void insertKey(m_tree_t *tree, int key, node_list *list){
+	m_tree_t *tmp;
+	stack *s = createStack();
+	stack *rotateStack = createStack();
+	int finished = 0;
+	if( tree->left == NULL ){  
+	      node_list *newList =(node_list*)malloc(sizeof(node_list));
+	      newList->left = list->left;
+	      newList->right = list->right;
+	      newList->next = NULL;
+	      tree->left = (m_tree_t *) newList;
+	      tree->node_list = newList;
+	      tree->key  = key;
+	      tree->right  = NULL; 
+	      tree->leftMin = list->left;
+	      tree->rightMax = list->right;
+	      tree->l = NEGINF;
+	      tree->r = POSINF;
+	      tree->node_list = newList; 	
+	      calculateLeafMeasure(tree);
+	}
+	else{  
+	      tmp = tree;
+	      while( tmp->right != NULL )
+	      { 
+		stackPush(tmp, s);
+		stackPush(tmp, rotateStack);
+		if(key < tmp->key)
+		       tmp = tmp->left;
+		else
+		       tmp = tmp->right;
+	
+	      }
+
+	      /* Test whether if key is distinct */
+	      if(tmp->key == key){  
+		  addNodeInterval(tmp, list);
+		  tmp->leftMin = min(tmp->leftMin, list->left);
+		  tmp->rightMax = max(tmp->rightMax, list->right);
+		  calculateLeafMeasure(tmp);
+		  
+	      }
+	      /* key is distinct*/
+	      else
+	      {  
+		 m_tree_t *old_leaf, *new_leaf;
+		 old_leaf = create_node();
+		 old_leaf->left = tmp->left; 
+		 old_leaf->key = tmp->key;
+		 old_leaf->right  = NULL;
+		 old_leaf->height = 0;
+		 old_leaf->leftMin = tmp->leftMin;
+		 old_leaf->rightMax = tmp->rightMax;
+
+		 new_leaf = create_node();
+		 addNodeInterval(new_leaf, list);
+		 new_leaf->key = key;
+		 new_leaf->right  = NULL;
+		 new_leaf->height = 0;
+		 new_leaf->leftMin = list->left;
+		 new_leaf->rightMax = list->right;
+
+		 if( tmp->key < key )
+		 {   tmp->left  = old_leaf;
+		     tmp->right = new_leaf;
+		     tmp->key = key;
+		     old_leaf->l = tmp->l;
+		     old_leaf->r = key;
+		     new_leaf->l = key;
+		     new_leaf->r = tmp->r;
+		 } 
+		 else
+		 {   tmp->left  = new_leaf;
+		     tmp->right = old_leaf;
+		     new_leaf->l = tmp->l;
+		     new_leaf->r = tmp->key;
+		     old_leaf->l = tmp->key;
+		     old_leaf->r = tmp->r;
+		 } 
+		 calculateLeafMeasure(old_leaf);
+		 calculateLeafMeasure(new_leaf);
+
+		 tmp->leftMin = min(tmp->left->leftMin,tmp->right->leftMin); 
+		 tmp->rightMax = max(tmp->left->rightMax,tmp->right->rightMax);
+		 stackPush(tmp, s);
+	      }
+	   }
+	   // update measures. 
+
+	   while(!stackEmpty(s))
+	     {
+	       tmp = stackTop(s);
+	       stackPop(s);
+	       calculateInternalMeasure(tmp);
+	       tmp->leftMin = min(tmp->left->leftMin,tmp->right->leftMin); 
+	       tmp->rightMax = max(tmp->left->rightMax,tmp->right->rightMax);       
+	     }
+
+	   //Rotation Part	- (Referred from the Text Book)
+
+	   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      while(!stackEmpty(rotateStack) && !finished)
+	{
+	  tmp = stackTop(rotateStack);
+	  stackPop(rotateStack);
+	  int tmp_height, old_height;
+	  old_height= tmp->height;
+			if( tmp->left->height - tmp->right->height == 2 ){ 
+				if( tmp->left->left->height - tmp->right->height == 1 )
+				{
+					rightRotation( tmp );
+					tmp->right->height =
+						tmp->right->left->height + 1;
+					tmp->height =
+						tmp->right->height + 1;
+				}
+				else
+				{
+					leftRotation( tmp->left );
+					rightRotation( tmp );
+					tmp_height =
+						tmp->left->left->height;
+					tmp->left->height =
+						tmp_height + 1;
+					tmp->right->height =
+						tmp_height + 1;
+					tmp->height = tmp_height + 2;
+				}
+			}
+			else if( tmp->left->height - tmp->right->height == -2 ){
+				if( tmp->right->right->height - tmp->left->height == 1 ){
+					leftRotation( tmp );
+					tmp->left->height =
+						tmp->left->right->height + 1;
+					tmp->height =
+						tmp->left->height + 1;
+				}
+				else{ 
+					rightRotation( tmp->right );
+					leftRotation( tmp );
+					tmp_height =
+						tmp->right->right->height;
+					tmp->left->height =
+						tmp_height + 1;
+					tmp->right->height =
+						tmp_height + 1;
+					tmp->height = tmp_height + 2;
+				}
+			}	
+			else{
+				if( tmp->left->height > tmp->right->height )
+					tmp->height = tmp->left->height + 1;
+				else
+					tmp->height = tmp->right->height + 1;
+			}
+			if( tmp->height == old_height )
+				finished = 1;
+
+
+	}
+
+	   removeStack(s);
+	   removeStack(rotateStack);
+}
+
+/*
+   inserts the interval [a,b[.
+*/
+void insert_interval(m_tree_t * tree, int a, int b){
+	node_list *list = (node_list*) malloc(sizeof(node_list));
+	list->left = a;
+	list->right = b;
+	list->next = NULL;
+	insertKey(tree, a, list);
+	insertKey(tree, b, list);
+	free(list);
+}
+
+
+/*
+   Deleting interval from the corresponding node
+*/
+void deleteIntervalNode(m_tree_t* tmp_node, node_list* interval){
+	node_list* temp = (node_list*)tmp_node->left;
+	node_list* next = temp->next;
+	  if(temp!= NULL && temp->left == interval->left && temp->right == interval->right)
+	    {
+	      tmp_node->left = (m_tree_t*) next;
+	      free(temp);
+	      return;
+	    }
+	  
+	  while(next!=NULL)
+	    {
+	      if(next->left == interval->left && next->right == interval->right)
+		{
+		  temp->next = next->next;
+		  free(next);
+		  return;
+		}
+	      temp = temp->next;
+	      next = next->next;
+	    }
+}
+
+
+/*
+   deletes key value in to the measure tree - Source from the basic search tree implementation - Project1
+*/
+void deleteKey(m_tree_t *tree, int key, node_list *list){
+ 	  m_tree_t *tmp, *upperNode, *sibling;
+          int finished = 0;
+	  stack *s = createStack();
+	  stack *rotateStack = createStack();
+	  if(tree->left == NULL)
+	      return;
+	  else if( tree->right == NULL ){  
+	     if(tree->key == key)
+	       {  
+		 free(tree->left);
+		 tree->left = NULL;
+		 tree->left = NULL;
+		 tree->key  = 0;
+		 tree->right  = NULL; 
+		 tree->leftMin = 0;
+		 tree->rightMax = 0;
+		 tree->l = NEGINF;
+		 tree->r = POSINF;
+		 tree->measure = 0;
+
+	       }  
+	     return;
+	     
+	   }
+	   else
+	   {  tmp = tree;
+	      while( tmp->right != NULL )
+	      {   upperNode = tmp;
+		  stackPush(tmp, s);
+		  stackPush(tmp, rotateStack);
+		  if( key < tmp->key )
+		  {  tmp   = upperNode->left; 
+		     sibling = upperNode->right;
+		  } 
+		  else
+		  {  tmp   = upperNode->right; 
+		     sibling = upperNode->left;
+		  } 
+	      }
+	      if( tmp->key != key )
+		 return;
+	      
+	      deleteIntervalNode(tmp, list);
+
+	      if(tmp->left == NULL)
+	      {  upperNode->key   = sibling->key;
+		 upperNode->left  = sibling->left;
+		 upperNode->right = sibling->right;
+		 upperNode->leftMin = sibling->leftMin;
+		 upperNode->rightMax = sibling->rightMax;
+		 upperNode->measure = sibling->measure;
+		 upperNode->height = sibling->height;
+		 if(upperNode->right != NULL){
+		      upperNode->right->r = upperNode->r;
+		      upperNode->left->l = upperNode->l;
+		 }	     
+
+	         calculateLeafMeasure(upperNode);
+
+		 stackPop(s);
+		 stackPop(rotateStack);
+	      }
+	      else
+	      {
+		tmp->leftMin = calculateLeftMin((node_list*)tmp->left);
+		tmp->rightMax = calculateRightMax((node_list*)tmp->left);
+		calculateLeafMeasure(tmp);
+	      }
+	   }
+
+	   while(!stackEmpty(s)){
+	       tmp = stackTop(s);
+	       stackPop(s);
+	       calculateInternalMeasure(tmp);
+	       tmp->leftMin = min(tmp->left->leftMin,tmp->right->leftMin); 
+	       tmp->rightMax = max(tmp->left->rightMax,tmp->right->rightMax);       
+	   }
+	   //Rotation Part	- (Referred from the Text Book)
+
+	   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+   	   while(!stackEmpty(rotateStack) && !finished){
+		  tmp = stackTop(rotateStack);
+		  stackPop(rotateStack);
+		  int tmp_height, old_height;
+		  old_height= tmp->height;
+
+	   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	  if(tmp->left->height - tmp->right->height == 2 )
+	    { 
+	      if( tmp->left->left->height - tmp->right->height == 1 )
+		{ 
+		  rightRotation( tmp );
+		  tmp->right->height = tmp->right->left->height + 1;
+		  tmp->height = tmp->right->height + 1;
+		}
+	      else
+		{ 
+		  leftRotation( tmp->left );
+		  rightRotation( tmp );
+		  tmp_height = tmp->left->left->height;
+		  tmp->left->height = tmp_height + 1;
+		  tmp->right->height = tmp_height + 1;
+		  tmp->height = tmp_height + 2;
+		}
+	    }
+	  else if( tmp->left->height - tmp->right->height == -2 )
+	    { 
+	      if( tmp->right->right->height - tmp->left->height == 1 )
+		{ 
+		  leftRotation( tmp );
+		  tmp->left->height = tmp->left->right->height + 1;
+		  tmp->height = tmp->left->height + 1;
+		}
+	      else
+		{ 
+		  rightRotation( tmp->right );
+		  leftRotation( tmp );
+		  tmp_height = tmp->right->right->height;
+		  tmp->left->height = tmp_height + 1;
+		  tmp->right->height = tmp_height + 1;
+		  tmp->height = tmp_height + 2;
+		}
+	    }
+	  else if( tmp->left != NULL && tmp->right != NULL)
+	    { 
+	      if( tmp->left->height > tmp->right->height )
+		{
+		  tmp->height = tmp->left->height + 1;
+		}
+	      else
+		{
+		  tmp->height = tmp->right->height + 1;
+		}
+	    }
+	  if( tmp->height == old_height )
+	    finished = 1;
+
+
+
+
+	   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	   }
+	   removeStack(s);
+	   removeStack(rotateStack);
+
+}
+
+
+
+// deletes the interval [a,b[, if it exists.
+void delete_interval(m_tree_t * tree, int a, int b){
+	node_list *list = (node_list*) malloc(sizeof(node_list));
+	list->left = a;
+	list->right = b;
+	list->next = NULL;
+	deleteKey(tree, a, list);
+	deleteKey(tree, b, list);
+	free(list);
+}
+
+//returns the length of the union of all intervals in the current set
+int query_length(m_tree_t * tree){
+	if(tree == NULL){
+		return -1;
+	}
+	else{
+		return tree->measure;
+	}
+}
+
+
+
+int main()
+{  int i; m_tree_t *t; ;
+   printf("starting \n");
+   t = create_m_tree();
+   for(i=0; i< 50; i++ )
+      insert_interval( t, 2*i, 2*i +1 );
+   printf("inserted first 50 intervals, total length is %d, should be 50.\n", query_length(t));
+   insert_interval( t, 0, 100 );
+   printf("inserted another interval, total length is %d, should be 100.\n", query_length(t));
+   for(i=1; i< 50; i++ )
+     insert_interval( t, 199 - (3*i), 200 ); /*[52,200] is longest*/
+   printf("inserted further 49 intervals, total length is %d, should be 200.\n", query_length(t));
+   for(i=2; i< 50; i++ )
+     delete_interval(t, 2*i, 2*i +1 );
+   delete_interval(t,0,100);
+   printf("deleted some intervals, total length is %d, should be 150.\n", query_length(t));
+   insert_interval( t, 1,2 ); 
+   for(i=49; i>0; i-- )
+     delete_interval( t, 199 - (3*i), 200 ); 
+   insert_interval( t, 0,2 );
+   insert_interval( t, 1,5 );  
+   printf("deleted some intervals, total length is %d, should be 5.\n", query_length(t));
+   insert_interval( t, 0, 100 );
+   printf("inserted another interval, total length is %d, should be 100.\n", query_length(t));
+   for(i=0; i<=3000; i++ )
+      insert_interval( t, 2000+i, 3000+i ); 
+   printf("inserted 3000 intervals, total length is %d, should be 4100.\n", query_length(t));
+   for(i=0; i<=3000; i++ )
+     delete_interval( t, 2000+i, 3000+i ); 
+   printf("deleted 3000 intervals, total length is %d, should be 100.\n", query_length(t));
+   for(i=0; i<=100; i++ )
+      insert_interval( t, 10*i, 10*i+100 ); 
+   printf("inserted another 100 intervals, total length is %d, should be 1100.\n", query_length(t));
+   delete_interval( t, 1,2 ); 
+   delete_interval( t, 0,2 ); 
+   delete_interval( t, 2,3 ); 
+   delete_interval( t, 0,1 ); 
+   delete_interval( t, 1,5 );
+   printf("deleted some intervals, total length is %d, should be still 1100.\n", query_length(t)); 
+   for(i=0; i<= 100; i++ )
+     delete_interval(t, 10*i, 10*i+100);
+   delete_interval(t,0,100);
+   printf("deleted last interval, total length is %d, should be 0.\n", query_length(t));
+   //structure(t,0);
+   for( i=0; i<100000; i++)
+   {  insert_interval(t, i, 1000000);
+   }
+   printf("inserted again 100000 intervals, total length is %d, should be 1000000.\n", query_length(t));
+   printf("End Test\n");
+}
+
